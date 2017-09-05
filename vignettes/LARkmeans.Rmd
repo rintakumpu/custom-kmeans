@@ -1,0 +1,193 @@
+---
+title: "Demonstration of package LARkmeans using Edgar Anderson's Iris Data and the Morphological Measurements on Leptograpsus Crabs dataset"
+author: "Lasse Rintakumpu"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Demonstration of package LARkmeans using Edgar Anderson's Iris Data and the Morphological Measurements on Leptograpsus Crabs dataset}
+  %\VignetteEngine{rmarkdown::render}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(eval = TRUE)
+```
+
+This is an introduction to the R package `LARkmeans` that provides a custom class for k-means clustering.
+
+*Keywords*: clustering, R, k-means clustering
+
+## 1. K-means clustering
+
+Assume you have a numeric data matrix of $n$ observations having $p$ variables. Consider the problem that the data might be a mixture of $k$ groups and the goal is to decide which of the observations belong to which group.
+
+Consider the value of $k$ is known. And for notation purpose assume $C_1,\ldots, C_k$ denote the labels which would assign observations to the corresponding groups, i.e.
+
+*$C_i \subset \{1,\ldots, n \}$
+*$C_i \cap C_j = \emptyset$ for $i \neq j$ 
+*$C_1 \cup C_2 \cup \ldots \cup C_k = \{1,\ldots, n\}$
+
+Let us measure the within-cluster variation $W$ of cluster $C_l$ as follows
+
+$W(C_l) = \frac{1}{|C_l|} \sum_{i, i' \in C_l} \sum_{j=1}^p (x_{ij} - x_{i'j})^2$
+
+The goal is then to find $C_1,\ldots, C_k$ such that 
+
+$\sum_{l=1}^k  W(C_l)$
+
+is minimized.
+
+This is known as **k-means** clustering. The general idea is to obtain class centers, called centroids and then assign all observations to the class where they have the smallest distance to the centroid using the Euclidean distance as a measure.
+
+Note that when the centroids are the class means, $W$ can be reformulated as 
+
+$W(C_l) = 2 \sum_{i \in C_l} \sum_{j=1}^p (x_{ij} - \mu_{lj})^2,$
+
+where $\mu_l$ is the centroid of cluster $l$.
+
+The algorithm used by package `kMeans`computes the k-means clustering as follows:
+
+1. Assign randomly each observation to one of the $k$ groups.
+2. Compute from each group the group centroid $\mu_i$ as the mean of the group members.
+3. Compute for each observation the Euclidean distance to all of the k centroids $\mu_i$ and assign it to the group with the closest centroid.
+4. Repeat steps 2. and 3. until either no observation changed its group membership anymore or until a maximum number of iterations is reached.
+
+This algorithm will improve the criterion value at each iteration until convergence, it might however not lead to the global minimum but only a local minimum. Therefore the k-means clustering of `LARkmeans` runs the k-means algorithm $m$ times and choose as final solution the one with the smallest objective function criterion. The algorithm is implemented as the function `kMeansAlg` in package `LARkmeans` and it is called exclusively by the function `kMeans`.
+
+## 2. Package LARkmeans functions
+
+The core of the `LARkmeans` package is the k-means clustering function `kMeans` that takes as its input a data matrix of numerical variable, the desired number of clusters, the number of times to run the clustering algorithm, a numeric vector `ind` of columns indicating te variables used in the clustering and the maximum number of iterations for single run of the clustering algorithm.  
+
+```{r eval=FALSE}
+kMeans(X, k, m=10, ind, max.iter=50, ...)
+
+```
+
+The function returns an object of the class `kMeans`. This includes the following elements:
+
+* `Cbest` the vector of the best group labels.
+* `ObjBest` the value of the objective function for the best solution.
+* `CentroidsBest` the matrix containing the centroids of the best solution.
+* `m` the number of repetitions.
+* `k` the number of groups.
+* `Xname` name of the data set used for the clustering.
+* `Ind` the value of input \code{ind}.
+* `Y` the data used for the clustering.
+* `Best` value of which of the runs was the best.
+* `Call` a matrix with \code{n} rows and \code{m} columns giving the cluster assignments for all \code{m} runs.
+* `ObjAll` a vector having the objective functions of all runs.
+* `StatusAll` a vector having the status from all runs.
+
+The matrix data is clustered by the "standard k-means method", also known as Lloyd-Forgy method (1957 & 1965). As described above this method aims at minimizing the within-cluster sum of squares objective and thus assigns the clusters by the smallest Euclidean distance of observation to the cluster center.
+
+The Random Partition method as described by Hamerly and Elkan (2002) is used for computing the initial cluster means.
+
+The package also includes `summary`, `print`, `fitted`, `plot` and `predict` methods for the class `kMeans`. Their use and behaviour is demonstrated below.
+
+## 3. Description of `iris` and `crabs` datasets
+
+The famous Fisher/Anderson `iris` dataset included in the package `datasets` gives the measurements in centimeters of the variables sepal length and width and petal length and width, respectively, for 50 flowers from each of 3 species of iris. The species are *Iris setosa*, *versicolor*, and *virginica*.
+
+The `crabs` dataset included in the package `MASS` gives 5 morphological measurements on 50 crabs each of two colour forms and both sexes, of the species *Leptograpsus variegatus* collected at Fremantle, W. Australia.
+
+
+## 4. Demonstration of the `LARkmeans` package
+
+```{r echo=FALSE}
+library(LARkmeans)
+
+```
+
+Use the `LARkmeans` package to classify species in the Edgar Anderson's iris dataset. First, split the iris dataset into a training set and test set.
+
+```{r}
+set.seed(63555)
+library(datasets)
+N <- nrow(iris)
+indTrain <- sample(N, N-10, replace=FALSE)
+IRIStrain <- iris[indTrain, ]
+IRIStest <- iris[-indTrain, ]
+```
+
+Use the training set to create class labels for the observations. Use all of the variables (minus the species label) for the classification. Use three clusters and run the algorithm 75 times. Get print and summary output of the results and plot the clusters. Also show the result of the `fitted` function.
+
+```{r}
+kMeansResult <- kMeans(IRIStrain[,1:4], k=3, m=75, max.iter=50)
+kMeansResult
+```
+
+```{r}
+summary(kMeansResult)
+```
+
+```{r fig.width=7, fig.height=5}
+plot(kMeansResult)
+
+```
+
+```{r}
+table(fitted(kMeansResult))
+
+```
+
+When you compare the results with the correct classifications, it is evident that the algorithm correctly classifies the plants 50 belonging to the species *setosa* but uses the same labels for *versicolor* and *virginica* as the measurements of the latter two plants are quite close to each other.
+
+Now, if we use these results to predict the labels of the test set, we should get label 1 for the first three observations that are of species *setosa* and label 2 for all of the others.
+
+```{r}
+predict(kMeansResult, IRIStest[,1:4])
+```
+
+And this is indeed what we get. Now, let's use the same approach to classify the crabs species in the `crabs` dataset.
+
+```{r}
+library(MASS)
+NC <- nrow(crabs)
+indTrainCrabs <- sample(NC, NC-10, replace=FALSE)
+CRABStrain <- crabs[indTrainCrabs, ]
+CRABStest <- crabs[-indTrainCrabs, ]
+
+```
+
+This time we will use four clusters to try to correctly label both the color of the crab (B/O) as well as its sex (M/F).
+
+```{r}
+kMeansResultC <- kMeans(CRABStrain[,4:8], k=4, m=75, max.iter=50)
+kMeansResultC
+
+```
+
+```{r}
+summary(kMeansResultC)
+```
+
+```{r fig.width=7, fig.height=5}
+plot(kMeansResultC)
+
+```
+
+```{r}
+table(fitted(kMeansResultC))
+
+```
+
+The algorithm classifies the data into four clusters but cluster sizes show that some of the labeling is clearly erroneous as each cluster size should be approximately 48. If we apply this result to the test set we get the following vector:
+
+```{r}
+predict(kMeansResultC, CRABStest[,4:8])
+```
+
+which clearly misclassifies the test data:
+
+```{r}
+CRABStest
+```
+
+## 5. References
+
+Forgy, E. W. (1965) Cluster analysis of multivariate data: efficiency vs interpretability of classifications. Biometrics **21**, 768--769.
+
+Hamerly, G.; Elkan, C. (2002) [Alternatives to the k-means algorithm that find better clusterings](http://people.csail.mit.edu/tieu/notebook/kmeans/15_p600-hamerly.pdf) (PDF). Proceedings of the eleventh international conference on Information and knowledge management (CIKM).
+
+Lloyd, S. P. (1957, 1982) Least squares quantization in PCM. Technical Note, Bell Laboratories. Published in 1982 in IEEE Transactions on Information Theory **28**, 128--137.
