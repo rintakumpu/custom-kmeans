@@ -1,0 +1,11 @@
+Package: LARkmeans
+Type: Package
+Title: K-means Clustering
+Version: 1.0
+Date: 2016-11-09
+Author: Lasse Rintakumpu
+Maintainer: Lasse Rintakumpu <rintakumpu@gmail.com>
+Description: Provides a custom class for k-means clustering.
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+License: GPL (>= 2)
